@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: theme('colors.sand.50');
+  color: theme('colors.ink.DEFAULT');
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark body {
+  background-color: theme('colors.night.950');
+  color: #E7EAF3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+@layer components {
+  .surface {
+    @apply rounded-card border border-sand-200 bg-white transition-colors dark:border-night-700 dark:bg-night-800;
+  }
+  .t-title {
+    @apply text-ink dark:text-white;
+  }
+  .t-soft {
+    @apply text-ink-soft dark:text-iris-100/60;
+  }
+  .t-faint {
+    @apply text-ink-faint dark:text-iris-100/40;
+  }
+  .field {
+    @apply w-full rounded-xl border border-sand-200 bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-forest-400 dark:border-night-600 dark:bg-night-900 dark:text-white dark:focus:border-iris-500;
+  }
+  /* Bouton principal : plein, avec animation d'appui tactile */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 rounded-xl bg-forest-600 px-5 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-forest-700 hover:shadow-lg hover:shadow-forest-600/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:shadow-iris-500/30;
+  }
+  /* Bouton secondaire : contour */
+  .btn-secondary {
+    @apply flex items-center justify-center gap-2 rounded-xl border border-sand-200 bg-white px-5 py-3 text-sm font-medium text-forest-700 transition-all duration-200 hover:bg-sand-100 active:scale-[0.98] dark:border-night-600 dark:bg-night-800 dark:text-iris-100 dark:hover:bg-night-700;
+  }
+}
