@@ -30,7 +30,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  register: (data: { name: string; phone: string; email: string; password: string }) =>
+  register: (data: { name: string; phone: string; email: string; password: string; adminCode: string }) =>
     request<{ token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),

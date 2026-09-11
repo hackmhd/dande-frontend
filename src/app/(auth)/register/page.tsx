@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [adminCode, setAdminCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +22,8 @@ export default function RegisterPage() {
     name.trim().length >= 2 &&
     phone.length >= 8 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-    password.length >= 6;
+    password.length >= 6 &&
+    adminCode.trim().length >= 6;
 
   async function handleSubmit() {
     setError(null);
@@ -32,6 +34,7 @@ export default function RegisterPage() {
         phone,
         email: email.trim(),
         password,
+        adminCode: adminCode.trim().toUpperCase(),
       });
       // Phase de test : le compte est créé et connecté directement,
       // sans double authentification.
@@ -127,6 +130,26 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="field"
           />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium t-title" htmlFor="code">
+            Code de votre agent
+          </label>
+          <input
+            id="code"
+            type="text"
+            inputMode="text"
+            autoCapitalize="characters"
+            placeholder="Ex : A7X2K9P4"
+            value={adminCode}
+            onChange={(e) => setAdminCode(e.target.value.toUpperCase())}
+            maxLength={8}
+            className="field uppercase tracking-widest"
+          />
+          <p className="mt-1.5 text-xs t-faint">
+            Ce code vous est communiqué par l'agent qui gère votre épargne.
+          </p>
         </div>
       </div>
 
