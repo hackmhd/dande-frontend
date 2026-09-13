@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { api, formatFcfa } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { enablePush, disablePush, pushPermission } from '@/lib/push';
 
 interface Row { label: string; value?: string; action?: () => void; }
 
@@ -59,6 +60,18 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleNotifications() {
+    const perm = pushPermission();
+    if (perm === 'unsupported') {
+      setToast('Votre appareil ne supporte pas les notifications.');
+      setTimeout(() => setToast(null), 3500);
+      return;
+    }
+    const result = await enablePush();
+    setToast(result.ok ? 'Notifications activées ✓' : (result.reason ?? 'Impossible d\u2019activer les notifications.'));
+    setTimeout(() => setToast(null), 3500);
+  }
+
   function handleLogout() {
     auth.clear();
     router.replace('/login');
@@ -79,8 +92,8 @@ export default function ProfilePage() {
   const settingRows: Row[] = [
     { label: 'Modifier mes informations', action: openEditProfile },
     { label: 'Changer mon mot de passe', action: () => router.push('/change-password') },
-    { label: 'Notifications', action: () => {} },
-    { label: 'Aide et support', action: () => {} },
+    { label: 'Activer les notifications', action: handleNotifications },
+    { label: 'Aide et support', action: () => router.push('/help') },
   ];
 
   return (

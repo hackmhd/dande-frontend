@@ -108,6 +108,21 @@ export const api = {
       body: JSON.stringify({ tontineId }),
     }),
 
+  getPushKey: () =>
+    request<{ enabled: boolean; publicKey: string }>('/push/public-key'),
+
+  subscribePush: (sub: unknown) =>
+    request<{ subscribed: boolean }>('/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(sub),
+    }),
+
+  unsubscribePush: (endpoint: string) =>
+    request<{ unsubscribed: boolean }>('/push/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    }),
+
   requestPasswordReset: () =>
     request<{ id: string; status: string }>('/password-reset', {
       method: 'POST',
