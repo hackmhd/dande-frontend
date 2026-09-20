@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { DownloadAppButton } from '@/components/DownloadAppButton';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/auth';
 
@@ -105,6 +106,8 @@ export default function LoginPage() {
             Créer un compte
           </button>
         </div>
+
+        <DownloadAppButton />
       </div>
     </main>
   );
