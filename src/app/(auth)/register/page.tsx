@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/auth';
 
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [adminCode, setAdminCode] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,11 @@ export default function RegisterPage() {
       // Phase de test : le compte est créé et connecté directement,
       // sans double authentification.
       auth.setToken(token);
+      // Si le client a choisi une photo à l'inscription, on l'enregistre
+      // maintenant qu'il est connecté (sans bloquer si ça échoue).
+      if (photo) {
+        try { await api.updatePhoto(photo); } catch { /* ignore */ }
+      }
       router.push('/dashboard');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Une erreur est survenue.');
@@ -66,6 +73,16 @@ export default function RegisterPage() {
         <p className="mt-1 text-sm t-soft">
           Quelques informations pour commencer à épargner.
         </p>
+      </div>
+
+      <div className="mt-6 flex flex-col items-center">
+        <ProfilePhoto
+          photo={photo}
+          name={name}
+          onChange={(dataUri) => setPhoto(dataUri)}
+          onRemove={() => setPhoto(null)}
+        />
+        <p className="mt-2 text-xs t-faint">Photo de profil (facultative)</p>
       </div>
 
       <div className="mt-8 space-y-4">

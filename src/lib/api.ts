@@ -64,6 +64,18 @@ export const api = {
       body: JSON.stringify(updates),
     }),
 
+  updatePhoto: (photo: string | null) =>
+    request<{ updated: boolean }>('/wallet/photo', {
+      method: 'PUT',
+      body: JSON.stringify({ photo }),
+    }),
+
+  setPhotoVisibility: (hidden: boolean) =>
+    request<{ hidden: boolean }>('/wallet/photo/visibility', {
+      method: 'POST',
+      body: JSON.stringify({ hidden }),
+    }),
+
   getProfile: () =>
     request<{
       id: string;
@@ -72,6 +84,8 @@ export const api = {
       email: string;
       village: string;
       memberSince: string;
+      photo: string | null;
+      photoHidden: boolean;
     }>('/wallet/profile'),
 
   getTontines: () =>

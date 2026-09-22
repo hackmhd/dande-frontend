@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { api, formatFcfa } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { enablePush, disablePush, pushPermission } from '@/lib/push';
 
 interface Row { label: string; value?: string; action?: () => void; }
@@ -18,7 +19,7 @@ function formatMonth(iso: string): string {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; memberSince: string } | null>(null);
+  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; memberSince: string; photo: string | null; photoHidden: boolean } | null>(null);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -100,11 +101,38 @@ export default function ProfilePage() {
     <main className="flex min-h-screen flex-col px-4 py-5">
       <header className="mb-5 flex items-start justify-between">
         <div className="flex flex-1 flex-col items-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-forest-600 text-xl font-semibold text-forest-50">
-            {initials}
-          </div>
+          <ProfilePhoto
+            photo={profile?.photo ?? null}
+            name={profile?.name ?? ''}
+            onChange={async (dataUri) => {
+              await api.updatePhoto(dataUri);
+              setProfile((p) => (p ? { ...p, photo: dataUri } : p));
+              setToast('Photo mise à jour.');
+              setTimeout(() => setToast(null), 3000);
+            }}
+            onRemove={async () => {
+              await api.updatePhoto(null);
+              setProfile((p) => (p ? { ...p, photo: null } : p));
+              setToast('Photo retirée.');
+              setTimeout(() => setToast(null), 3000);
+            }}
+          />
           <p className="mt-2.5 text-base font-medium t-title">{profile?.name ?? 'Chargement…'}</p>
           <p className="text-sm t-soft">{profile?.village || 'Dande'}</p>
+          {profile?.photo && (
+            <button
+              onClick={async () => {
+                const hidden = !profile.photoHidden;
+                await api.setPhotoVisibility(hidden);
+                setProfile((p) => (p ? { ...p, photoHidden: hidden } : p));
+                setToast(hidden ? 'Photo masquée aux autres.' : 'Photo visible.');
+                setTimeout(() => setToast(null), 3000);
+              }}
+              className="mt-2 text-xs text-forest-700 underline underline-offset-2 dark:text-iris-300"
+            >
+              {profile.photoHidden ? 'Rendre ma photo visible' : 'Masquer ma photo aux autres'}
+            </button>
+          )}
         </div>
         <ThemeToggle />
       </header>
