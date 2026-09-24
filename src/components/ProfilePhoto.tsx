@@ -93,7 +93,6 @@ export function ProfilePhoto({ photo, name, onChange, onRemove }: ProfilePhotoPr
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="user"
         onChange={handleFile}
         className="hidden"
       />
