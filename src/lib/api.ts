@@ -30,7 +30,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  register: (data: { name: string; phone: string; email: string; password: string; adminCode: string }) =>
+  register: (data: { name: string; phone: string; email: string; password: string; adminCode: string; photo?: string | null }) =>
     request<{ token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -71,8 +71,17 @@ export const api = {
       phone: string;
       email: string;
       village: string;
+      photo: string | null;
+      photoHidden: boolean;
       memberSince: string;
     }>('/wallet/profile'),
+
+  // Définir / changer / retirer (photo = null) sa photo de profil.
+  updatePhoto: (photo: string | null, hidden?: boolean) =>
+    request<{ photo: string | null; photoHidden?: boolean }>('/wallet/photo', {
+      method: 'PUT',
+      body: JSON.stringify({ photo, ...(typeof hidden === 'boolean' ? { hidden } : {}) }),
+    }),
 
   getTontines: () =>
     request<

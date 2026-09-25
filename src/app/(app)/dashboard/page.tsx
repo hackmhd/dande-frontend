@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [depositCount, setDepositCount] = useState(0);
   const [clientName, setClientName] = useState('');
   const [village, setVillage] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +35,7 @@ export default function DashboardPage() {
         setDepositCount(w.depositCount ?? 0);
         setClientName(p.name);
         setVillage(p.village || 'Dande');
+        setPhoto(p.photo ?? null);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Erreur de chargement.'))
       .finally(() => setLoading(false));
@@ -50,8 +52,13 @@ export default function DashboardPage() {
     <main className="flex min-h-screen flex-col gap-3.5 px-4 py-5">
       <header className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-forest-600 text-xs font-medium text-forest-50">
-            {initials}
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-forest-600 text-xs font-medium text-forest-50">
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photo} alt="Profil" className="h-full w-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div>
             <p className="text-sm font-medium t-title">{clientName || 'Mon épargne'}</p>

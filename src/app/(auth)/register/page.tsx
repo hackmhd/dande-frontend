@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/auth';
 
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [adminCode, setAdminCode] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +37,7 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         adminCode: adminCode.trim().toUpperCase(),
+        photo,
       });
       // Phase de test : le compte est créé et connecté directement,
       // sans double authentification.
@@ -68,7 +71,18 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <div className="mt-8 space-y-4">
+      <div className="mt-6 flex flex-col items-center">
+        <ProfilePhoto
+          photo={photo}
+          initials={name.trim() ? name.trim().split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() : '+'}
+          size={88}
+          editable
+          onChange={setPhoto}
+        />
+        <p className="mt-2 text-xs t-faint">Photo de profil (facultatif)</p>
+      </div>
+
+      <div className="mt-6 space-y-4">
         <div>
           <label className="mb-1.5 block text-sm font-medium t-title" htmlFor="name">
             Nom complet

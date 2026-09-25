@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { api, formatFcfa } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { enablePush, disablePush, pushPermission } from '@/lib/push';
 
 interface Row { label: string; value?: string; action?: () => void; }
@@ -18,7 +19,7 @@ function formatMonth(iso: string): string {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; memberSince: string } | null>(null);
+  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; photo: string | null; photoHidden: boolean; memberSince: string } | null>(null);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -58,6 +59,45 @@ export default function ProfilePage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handlePhotoChange(dataUri: string) {
+    // Affichage optimiste, puis envoi au serveur.
+    setProfile((p) => (p ? { ...p, photo: dataUri } : p));
+    try {
+      await api.updatePhoto(dataUri);
+      setToast('Photo mise à jour ✓');
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Erreur lors de l’envoi de la photo.');
+      // Recharge le vrai état en cas d'échec.
+      api.getProfile().then(setProfile).catch(() => {});
+    }
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  async function handleRemovePhoto() {
+    setProfile((p) => (p ? { ...p, photo: null } : p));
+    try {
+      await api.updatePhoto(null);
+      setToast('Photo retirée.');
+    } catch {
+      setToast('Erreur.');
+    }
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  async function toggleHidden() {
+    if (!profile) return;
+    const next = !profile.photoHidden;
+    setProfile({ ...profile, photoHidden: next });
+    try {
+      await api.updatePhoto(profile.photo, next);
+      setToast(next ? 'Photo masquée aux autres clients.' : 'Photo visible.');
+    } catch {
+      setProfile({ ...profile, photoHidden: !next });
+      setToast('Erreur.');
+    }
+    setTimeout(() => setToast(null), 3000);
   }
 
   async function handleNotifications() {
@@ -100,11 +140,26 @@ export default function ProfilePage() {
     <main className="flex min-h-screen flex-col px-4 py-5">
       <header className="mb-5 flex items-start justify-between">
         <div className="flex flex-1 flex-col items-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-forest-600 text-xl font-semibold text-forest-50">
-            {initials}
-          </div>
+          <ProfilePhoto
+            photo={profile?.photo ?? null}
+            initials={initials}
+            size={80}
+            editable
+            onChange={handlePhotoChange}
+          />
           <p className="mt-2.5 text-base font-medium t-title">{profile?.name ?? 'Chargement…'}</p>
           <p className="text-sm t-soft">{profile?.village || 'Dande'}</p>
+          {profile?.photo && (
+            <div className="mt-2 flex items-center gap-3 text-xs">
+              <button onClick={toggleHidden} className="t-soft underline-offset-2 hover:underline">
+                {profile.photoHidden ? 'Rendre visible aux autres' : 'Masquer aux autres clients'}
+              </button>
+              <span className="t-faint">·</span>
+              <button onClick={handleRemovePhoto} className="text-red-600 underline-offset-2 hover:underline dark:text-red-300">
+                Retirer
+              </button>
+            </div>
+          )}
         </div>
         <ThemeToggle />
       </header>
