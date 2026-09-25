@@ -19,11 +19,7 @@ function formatMonth(iso: string): string {
 
 export default function ProfilePage() {
   const router = useRouter();
-<<<<<<< HEAD
   const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; photo: string | null; photoHidden: boolean; memberSince: string } | null>(null);
-=======
-  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; memberSince: string; photo: string | null; photoHidden: boolean } | null>(null);
->>>>>>> c94a73b59a1631a50fd76ac3d632bcd6b425bc58
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -146,31 +142,14 @@ export default function ProfilePage() {
         <div className="flex flex-1 flex-col items-center">
           <ProfilePhoto
             photo={profile?.photo ?? null}
-<<<<<<< HEAD
             initials={initials}
             size={80}
             editable
             onChange={handlePhotoChange}
-=======
-            name={profile?.name ?? ''}
-            onChange={async (dataUri) => {
-              await api.updatePhoto(dataUri);
-              setProfile((p) => (p ? { ...p, photo: dataUri } : p));
-              setToast('Photo mise à jour.');
-              setTimeout(() => setToast(null), 3000);
-            }}
-            onRemove={async () => {
-              await api.updatePhoto(null);
-              setProfile((p) => (p ? { ...p, photo: null } : p));
-              setToast('Photo retirée.');
-              setTimeout(() => setToast(null), 3000);
-            }}
->>>>>>> c94a73b59a1631a50fd76ac3d632bcd6b425bc58
           />
           <p className="mt-2.5 text-base font-medium t-title">{profile?.name ?? 'Chargement…'}</p>
           <p className="text-sm t-soft">{profile?.village || 'Dande'}</p>
           {profile?.photo && (
-<<<<<<< HEAD
             <div className="mt-2 flex items-center gap-3 text-xs">
               <button onClick={toggleHidden} className="t-soft underline-offset-2 hover:underline">
                 {profile.photoHidden ? 'Rendre visible aux autres' : 'Masquer aux autres clients'}
@@ -180,20 +159,6 @@ export default function ProfilePage() {
                 Retirer
               </button>
             </div>
-=======
-            <button
-              onClick={async () => {
-                const hidden = !profile.photoHidden;
-                await api.setPhotoVisibility(hidden);
-                setProfile((p) => (p ? { ...p, photoHidden: hidden } : p));
-                setToast(hidden ? 'Photo masquée aux autres.' : 'Photo visible.');
-                setTimeout(() => setToast(null), 3000);
-              }}
-              className="mt-2 text-xs text-forest-700 underline underline-offset-2 dark:text-iris-300"
-            >
-              {profile.photoHidden ? 'Rendre ma photo visible' : 'Masquer ma photo aux autres'}
-            </button>
->>>>>>> c94a73b59a1631a50fd76ac3d632bcd6b425bc58
           )}
         </div>
         <ThemeToggle />

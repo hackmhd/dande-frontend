@@ -42,11 +42,6 @@ export default function RegisterPage() {
       // Phase de test : le compte est créé et connecté directement,
       // sans double authentification.
       auth.setToken(token);
-      // Si le client a choisi une photo à l'inscription, on l'enregistre
-      // maintenant qu'il est connecté (sans bloquer si ça échoue).
-      if (photo) {
-        try { await api.updatePhoto(photo); } catch { /* ignore */ }
-      }
       router.push('/dashboard');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Une erreur est survenue.');
@@ -79,7 +74,6 @@ export default function RegisterPage() {
       <div className="mt-6 flex flex-col items-center">
         <ProfilePhoto
           photo={photo}
-<<<<<<< HEAD
           initials={name.trim() ? name.trim().split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() : '+'}
           size={88}
           editable
@@ -89,16 +83,6 @@ export default function RegisterPage() {
       </div>
 
       <div className="mt-6 space-y-4">
-=======
-          name={name}
-          onChange={(dataUri) => setPhoto(dataUri)}
-          onRemove={() => setPhoto(null)}
-        />
-        <p className="mt-2 text-xs t-faint">Photo de profil (facultative)</p>
-      </div>
-
-      <div className="mt-8 space-y-4">
->>>>>>> c94a73b59a1631a50fd76ac3d632bcd6b425bc58
         <div>
           <label className="mb-1.5 block text-sm font-medium t-title" htmlFor="name">
             Nom complet
