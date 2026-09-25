@@ -64,6 +64,18 @@ export const api = {
       body: JSON.stringify(updates),
     }),
 
+  updatePhoto: (photo: string | null) =>
+    request<{ updated: boolean }>('/wallet/photo', {
+      method: 'PUT',
+      body: JSON.stringify({ photo }),
+    }),
+
+  setPhotoVisibility: (hidden: boolean) =>
+    request<{ hidden: boolean }>('/wallet/photo/visibility', {
+      method: 'POST',
+      body: JSON.stringify({ hidden }),
+    }),
+
   getProfile: () =>
     request<{
       id: string;
@@ -74,6 +86,8 @@ export const api = {
       photo: string | null;
       photoHidden: boolean;
       memberSince: string;
+      photo: string | null;
+      photoHidden: boolean;
     }>('/wallet/profile'),
 
   // Définir / changer / retirer (photo = null) sa photo de profil.
