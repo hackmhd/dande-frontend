@@ -7,6 +7,16 @@ export function formatFcfa(amount: number): string {
   return `${grouped}\u00A0FCFA`;
 }
 
+/** Date/heure ISO \u2192 format fran\u00E7ais lisible : \u00AB 21 sept. 2026 \u00E0 14:30 \u00BB. */
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return '\u2014';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '\u2014';
+  return d.toLocaleString('fr-FR', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
 function authHeaders(): HeadersInit {
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('dande_token') : null;
@@ -159,7 +169,9 @@ export const api = {
         amountFcfa: number;
         status: string;
         date: string;
+        at: string;
         reference: string;
+        ticket: string | null;
       }>
     >('/wallet/history'),
   createDeposit: (amountFcfa: number) =>

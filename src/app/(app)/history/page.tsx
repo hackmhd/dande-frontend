@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatFcfa, api } from '@/lib/api';
+import { formatFcfa, formatDateTime, api } from '@/lib/api';
+import { CopyChip } from '@/components/CopyChip';
 import { auth } from '@/lib/auth';
 
 const MONTHS = ['jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -22,7 +23,7 @@ const STATUS_STYLE: Record<string, string> = {
   failed: 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-300',
 };
 
-interface Tx { id: string; type: string; amountFcfa: number; status: string; date: string; }
+interface Tx { id: string; type: string; amountFcfa: number; status: string; date: string; at: string; ticket: string | null; }
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -67,7 +68,13 @@ export default function HistoryPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium t-title">Dépôt</p>
-                  <p className="text-xs t-soft">{formatDate(tx.date)}</p>
+                  <p className="text-xs t-soft">{formatDateTime(tx.at)}</p>
+                  {tx.ticket && (
+                    <div className="mt-0.5 flex items-center gap-1 text-[11px]">
+                      <span className="t-faint">Ticket :</span>
+                      <CopyChip value={tx.ticket} className="text-[11px] font-semibold text-forest-700 dark:text-forest-400" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="text-right">
