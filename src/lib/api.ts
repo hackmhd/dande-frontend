@@ -179,4 +179,71 @@ export const api = {
         reviewedAt: string | null;
       }>
     >('/deposit-requests'),
+
+  // ---- Messagerie privée (client ↔ agent) ----
+  getChat: () =>
+    request<{
+      messages: Array<{ id: string; fromAdmin: boolean; body: string; photo: string | null; readAt: string | null; createdAt: string }>;
+      agent: { name: string; phone: string } | null;
+    }>('/chat'),
+
+  sendChat: (body: string, photo?: string | null) =>
+    request<{ id: string; fromAdmin: boolean; body: string; photo: string | null; createdAt: string }>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ body, photo: photo ?? null }),
+    }),
+
+  chatUnread: () => request<{ unread: number }>('/chat/unread'),
+
+  // ---- Fil public ----
+  getFeed: (before?: string) =>
+    request<Array<FeedPost>>(`/feed${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+
+  createPost: (body: string, photos: string[]) =>
+    request<{ id: string; createdAt: string }>('/feed', {
+      method: 'POST',
+      body: JSON.stringify({ body, photos }),
+    }),
+
+  likePost: (id: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/feed/${id}/like`, { method: 'POST' }),
+
+  getComments: (id: string) =>
+    request<Array<FeedComment>>(`/feed/${id}/comments`),
+
+  addComment: (id: string, body: string) =>
+    request<{ id: string; createdAt: string }>(`/feed/${id}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+
+  deletePost: (id: string) => request<{ deleted: boolean }>(`/feed/${id}`, { method: 'DELETE' }),
+
+  deleteComment: (id: string) => request<{ deleted: boolean }>(`/feed/comments/${id}`, { method: 'DELETE' }),
+
+  reportContent: (target: { postId?: string; commentId?: string }, reason?: string) =>
+    request<{ reported: boolean }>('/feed/report', {
+      method: 'POST',
+      body: JSON.stringify({ ...target, reason }),
+    }),
 };
+
+export interface FeedPost {
+  id: string;
+  body: string;
+  createdAt: string;
+  editedAt: string | null;
+  author: { kind: string; name: string; photo: string | null; isAdmin: boolean };
+  photos: string[];
+  likeCount: number;
+  commentCount: number;
+  liked: boolean;
+  canDelete: boolean;
+}
+
+export interface FeedComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { name: string; photo: string | null; isAdmin: boolean };
+}

@@ -1,6 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import { auth } from '@/lib/auth';
 
 interface NavItem {
   href: string;
@@ -10,7 +13,8 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Accueil', icon: 'home' },
-  { href: '/challenges', label: 'Défis', icon: 'target' },
+  { href: '/feed', label: 'Fil', icon: 'globe' },
+  { href: '/chat', label: 'Messages', icon: 'chat' },
   { href: '/history', label: 'Historique', icon: 'list' },
   { href: '/profile', label: 'Profil', icon: 'user' },
 ];
@@ -58,6 +62,19 @@ function Icon({ name, active }: { name: string; active: boolean }) {
           <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
         </svg>
       );
+    case 'globe':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" />
+        </svg>
+      );
+    case 'chat':
+      return (
+        <svg {...common}>
+          <path d="M4 5h16v11H8l-4 4z" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -66,6 +83,16 @@ function Icon({ name, active }: { name: string; active: boolean }) {
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated()) return;
+    let alive = true;
+    const load = () => api.chatUnread().then((r) => { if (alive) setUnread(r.unread); }).catch(() => {});
+    load();
+    const t = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(t); };
+  }, [pathname]);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t border-sand-200 bg-white/95 backdrop-blur transition-colors dark:border-night-700 dark:bg-night-900/95">
@@ -83,7 +110,14 @@ export function BottomNav() {
                   : 'text-ink-faint dark:text-iris-100/40'
               }`}
             >
-              <Icon name={item.icon} active={active} />
+              <span className="relative">
+                <Icon name={item.icon} active={active} />
+                {item.icon === 'chat' && unread > 0 && (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+              </span>
               <span
                 className={`text-[11px] ${active ? 'font-medium' : ''}`}
               >
