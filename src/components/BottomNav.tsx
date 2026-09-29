@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, dm } from '@/lib/api';
 import { auth } from '@/lib/auth';
 
 interface NavItem {
@@ -14,7 +14,7 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Accueil', icon: 'home' },
   { href: '/feed', label: 'Fil', icon: 'globe' },
-  { href: '/chat', label: 'Messages', icon: 'chat' },
+  { href: '/messages', label: 'Messages', icon: 'chat' },
   { href: '/history', label: 'Historique', icon: 'list' },
   { href: '/profile', label: 'Profil', icon: 'user' },
 ];
@@ -88,7 +88,9 @@ export function BottomNav() {
   useEffect(() => {
     if (!auth.isAuthenticated()) return;
     let alive = true;
-    const load = () => api.chatUnread().then((r) => { if (alive) setUnread(r.unread); }).catch(() => {});
+    const load = () => Promise.all([api.chatUnread(), dm.unread()])
+      .then(([a, d]) => { if (alive) setUnread(a.unread + d.unread); })
+      .catch(() => {});
     load();
     const t = setInterval(load, 30000);
     return () => { alive = false; clearInterval(t); };
