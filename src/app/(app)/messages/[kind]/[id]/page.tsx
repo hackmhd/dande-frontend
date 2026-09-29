@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { dm, DmMessage, PublicProfile } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
-import { VoiceRecorder } from '@/components/VoiceRecorder';
+import { VoiceRecorder, MiniPlayer } from '@/components/VoiceRecorder';
 
 function time(iso: string) {
   const d = new Date(iso);
@@ -22,6 +22,7 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
   const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -98,7 +99,7 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={m.photo} alt="" onClick={() => setZoom(m.photo)} className="mb-1 max-h-56 cursor-zoom-in rounded-lg object-cover" />
               )}
-              {m.audio && <audio controls src={m.audio} className="my-1 h-9 w-52 max-w-full" />}
+              {m.audio && <div className="my-1 w-56 max-w-full"><MiniPlayer src={m.audio} onDark={m.fromMe} /></div>}
               {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
               <p className={`mt-0.5 text-[10px] ${m.fromMe ? 'text-white/70' : 't-faint'}`}>{time(m.createdAt)}</p>
             </div>
@@ -116,18 +117,23 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
           </div>
         )}
         <div className="flex items-end gap-1.5">
-          <button onClick={() => fileRef.current?.click()} className="flex h-10 w-10 shrink-0 items-center justify-center text-forest-700 dark:text-iris-300" aria-label="Photo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
-          </button>
+          {/* Pendant l'enregistrement / l'aperçu, l'enregistreur prend toute la barre. */}
+          {!recording && (
+            <>
+              <button onClick={() => fileRef.current?.click()} className="flex h-10 w-10 shrink-0 items-center justify-center text-forest-700 dark:text-iris-300" aria-label="Photo">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+              </button>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); } }} rows={1} placeholder="Message…" className="max-h-28 flex-1 resize-none rounded-2xl border border-sand-200 bg-sand-50 px-3 py-2 text-sm outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-800 dark:text-white" />
+            </>
+          )}
           <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
-          <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); } }} rows={1} placeholder="Message…" className="max-h-28 flex-1 resize-none rounded-2xl border border-sand-200 bg-sand-50 px-3 py-2 text-sm outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-800 dark:text-white" />
           {/* Un seul bouton : micro quand rien à envoyer, sinon bouton Envoyer. */}
-          {text.trim() || photo ? (
+          {!recording && (text.trim() || photo) ? (
             <button onClick={sendText} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest-600 text-white" aria-label="Envoyer">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" /></svg>
             </button>
           ) : (
-            <VoiceRecorder onRecorded={sendVoice} />
+            <VoiceRecorder onRecorded={sendVoice} onActiveChange={setRecording} />
           )}
         </div>
       </div>
