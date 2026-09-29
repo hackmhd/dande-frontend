@@ -19,7 +19,7 @@ function formatMonth(iso: string): string {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; photo: string | null; photoHidden: boolean; memberSince: string } | null>(null);
+  const [profile, setProfile] = useState<{ name: string; phone: string; email: string; village: string; photo: string | null; photoHidden: boolean; phoneVisible: boolean; memberSince: string } | null>(null);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -129,8 +129,23 @@ export default function ProfilePage() {
     { label: 'Total épargné', value: formatFcfa(balance) },
   ] : [];
 
+  async function togglePhoneVisible() {
+    if (!profile) return;
+    const next = !profile.phoneVisible;
+    setProfile({ ...profile, phoneVisible: next });
+    try {
+      await api.updateProfile({ phoneVisible: next });
+      setToast(next ? 'Votre numéro est désormais visible sur votre profil.' : 'Votre numéro est masqué.');
+    } catch {
+      setProfile({ ...profile, phoneVisible: !next });
+      setToast('Erreur.');
+    }
+    setTimeout(() => setToast(null), 3000);
+  }
+
   const settingRows: Row[] = [
     { label: 'Modifier mes informations', action: openEditProfile },
+    { label: profile?.phoneVisible ? 'Masquer mon numéro sur mon profil' : 'Afficher mon numéro sur mon profil', action: togglePhoneVisible },
     { label: 'Changer mon mot de passe', action: () => router.push('/change-password') },
     { label: 'Activer les notifications', action: handleNotifications },
     { label: 'Aide et support', action: () => router.push('/help') },

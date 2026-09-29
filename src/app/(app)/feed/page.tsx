@@ -6,6 +6,7 @@ import { auth } from '@/lib/auth';
 import { api, FeedPost, FeedComment } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfileSheet } from '@/components/ProfileSheet';
 
 function timeAgo(iso: string) {
   const d = new Date(iso).getTime();
@@ -43,6 +44,8 @@ export default function FeedPage() {
   const [posting, setPosting] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
   const [openComments, setOpenComments] = useState<string | null>(null);
+  const [viewProfile, setViewProfile] = useState<{ kind: string; id: string } | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function load() {
@@ -51,6 +54,7 @@ export default function FeedPage() {
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
     load();
+    api.getProfile().then((p) => setMeId(p.id)).catch(() => {});
   }, [router]);
 
   async function pickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
@@ -108,14 +112,16 @@ export default function FeedPage() {
           {posts.map((p) => (
             <article key={p.id} className="surface overflow-hidden">
               <div className="flex items-center gap-3 px-4 pt-3">
-                <Avatar name={p.author.name} photo={p.author.photo} />
-                <div className="flex-1">
+                <button onClick={() => setViewProfile({ kind: p.author.kind, id: p.author.id })} className="active:scale-95">
+                  <Avatar name={p.author.name} photo={p.author.photo} />
+                </button>
+                <button onClick={() => setViewProfile({ kind: p.author.kind, id: p.author.id })} className="flex-1 text-left">
                   <p className="text-sm font-semibold t-title">
                     {p.author.name}
                     {p.author.isAdmin && <span className="ml-1.5 rounded bg-iris-500/15 px-1.5 py-0.5 text-[10px] font-medium text-iris-600 dark:text-iris-300">Dande</span>}
                   </p>
                   <p className="text-xs t-faint">{timeAgo(p.createdAt)}</p>
-                </div>
+                </button>
                 <PostMenu canDelete={p.canDelete} onDelete={() => remove(p)} onReport={() => report(p)} />
               </div>
 
@@ -186,6 +192,14 @@ export default function FeedPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={zoom} alt="" className="max-h-[88vh] max-w-full rounded-xl object-contain" />
         </div>
+      )}
+
+      {viewProfile && (
+        <ProfileSheet
+          author={viewProfile}
+          me={meId ? { kind: 'client', id: meId } : undefined}
+          onClose={() => setViewProfile(null)}
+        />
       )}
     </main>
   );

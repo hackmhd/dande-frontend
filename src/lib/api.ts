@@ -68,8 +68,8 @@ export const api = {
       body: JSON.stringify({ phoneNumber, code }),
     }),
 
-  updateProfile: (updates: { name?: string; village?: string }) =>
-    request<{ name: string; village: string }>('/wallet/profile', {
+  updateProfile: (updates: { name?: string; village?: string; phoneVisible?: boolean }) =>
+    request<{ name: string; village: string; phoneVisible?: boolean }>('/wallet/profile', {
       method: 'PATCH',
       body: JSON.stringify(updates),
     }),
@@ -83,6 +83,7 @@ export const api = {
       village: string;
       photo: string | null;
       photoHidden: boolean;
+      phoneVisible: boolean;
       memberSince: string;
     }>('/wallet/profile'),
 
@@ -240,12 +241,14 @@ export const api = {
     }),
 };
 
+export interface FeedAuthor { kind: string; id: string; name: string; photo: string | null; isAdmin: boolean }
+
 export interface FeedPost {
   id: string;
   body: string;
   createdAt: string;
   editedAt: string | null;
-  author: { kind: string; name: string; photo: string | null; isAdmin: boolean };
+  author: FeedAuthor;
   photos: string[];
   likeCount: number;
   commentCount: number;
@@ -257,5 +260,28 @@ export interface FeedComment {
   id: string;
   body: string;
   createdAt: string;
-  author: { name: string; photo: string | null; isAdmin: boolean };
+  author: FeedAuthor;
 }
+
+export interface PublicProfile {
+  kind: string; id: string; name: string;
+  village: string | null; photo: string | null;
+  phone: string | null; isAdmin: boolean;
+}
+
+export interface DmMessage {
+  id: string; fromMe: boolean; body: string;
+  photo: string | null; audio: string | null;
+  readAt: string | null; createdAt: string;
+}
+
+export const dm = {
+  list: () =>
+    request<Array<{ otherKind: string; otherId: string; otherName: string; otherPhoto: string | null; lastMessage: string; lastFromMe: boolean; lastAt: string; unread: number }>>('/dm'),
+  unread: () => request<{ unread: number }>('/dm/unread'),
+  profile: (kind: string, id: string) => request<PublicProfile>(`/dm/profile/${kind}/${id}`),
+  conversation: (kind: string, id: string) =>
+    request<{ messages: DmMessage[]; profile: PublicProfile }>(`/dm/with/${kind}/${id}`),
+  send: (toKind: string, toId: string, payload: { body?: string; photo?: string | null; audio?: string | null }) =>
+    request<DmMessage>('/dm', { method: 'POST', body: JSON.stringify({ toKind, toId, ...payload }) }),
+};
