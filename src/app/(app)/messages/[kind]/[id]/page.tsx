@@ -54,6 +54,12 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
     try { const m = await dm.send(kind, id, { audio: dataUri }); setMessages((x) => [...x, m]); } catch { /* ignore */ }
   }
 
+  async function removeMsg(id2: string) {
+    if (!confirm('Supprimer ce message ?')) return;
+    setMessages((x) => x.filter((m) => m.id !== id2));
+    try { await dm.remove(id2); } catch { load(); }
+  }
+
   return (
     <main className="flex h-[calc(100vh-5rem)] flex-col">
       <header className="flex items-center gap-3 border-b border-sand-200 bg-white px-4 py-3 dark:border-night-700 dark:bg-night-900">
@@ -81,7 +87,12 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
         ) : messages.length === 0 ? (
           <p className="mt-8 text-center text-sm t-faint">Démarrez la conversation.</p>
         ) : messages.map((m) => (
-          <div key={m.id} className={`flex ${m.fromMe ? 'justify-end' : 'justify-start'}`}>
+          <div key={m.id} className={`group flex items-end gap-1 ${m.fromMe ? 'justify-end' : 'justify-start'}`}>
+            {m.fromMe && (
+              <button onClick={() => removeMsg(m.id)} className="mb-1 shrink-0 text-red-500 opacity-0 transition-opacity group-hover:opacity-100" aria-label="Supprimer">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+              </button>
+            )}
             <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${m.fromMe ? 'bg-forest-600 text-white' : 'bg-white text-ink dark:bg-night-800 dark:text-iris-100/90'}`}>
               {m.photo && (
                 // eslint-disable-next-line @next/next/no-img-element

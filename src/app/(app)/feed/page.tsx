@@ -147,7 +147,7 @@ export default function FeedPage() {
                 </button>
               </div>
 
-              {openComments === p.id && <Comments postId={p.id} onCountChange={(n) => setPosts((list) => list.map((x) => x.id === p.id ? { ...x, commentCount: n } : x))} />}
+              {openComments === p.id && <Comments postId={p.id} onCountChange={(n) => setPosts((list) => list.map((x) => x.id === p.id ? { ...x, commentCount: n } : x))} onOpenProfile={setViewProfile} />}
             </article>
           ))}
         </div>
@@ -223,43 +223,89 @@ function PostMenu({ canDelete, onDelete, onReport }: { canDelete: boolean; onDel
   );
 }
 
-function Comments({ postId, onCountChange }: { postId: string; onCountChange: (n: number) => void }) {
+function Comments({ postId, onCountChange, onOpenProfile }: { postId: string; onCountChange: (n: number) => void; onOpenProfile: (a: { kind: string; id: string }) => void }) {
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { api.getComments(postId).then((c) => { setComments(c); onCountChange(c.length); }).catch(() => {}); }, [postId]);
+  function reload() { api.getComments(postId).then((c) => { setComments(c); onCountChange(c.length); }).catch(() => {}); }
+  useEffect(() => { reload(); }, [postId]);
 
   async function send() {
     if (!text.trim() || busy) return;
     setBusy(true);
     const body = text.trim();
     setText('');
-    try {
-      await api.addComment(postId, body);
-      const c = await api.getComments(postId);
-      setComments(c); onCountChange(c.length);
-    } catch { setText(body); } finally { setBusy(false); }
+    const parent = replyTo?.id ?? null;
+    setReplyTo(null);
+    try { await api.addComment(postId, body, parent); reload(); }
+    catch { setText(body); } finally { setBusy(false); }
+  }
+
+  async function like(c: FeedComment) {
+    setComments((list) => list.map((x) => x.id === c.id ? { ...x, liked: !x.liked, likeCount: x.likeCount + (x.liked ? -1 : 1) } : x));
+    try { await api.likeComment(c.id); } catch { reload(); }
+  }
+  async function del(c: FeedComment) {
+    if (!confirm('Supprimer ce commentaire ?')) return;
+    setComments((list) => list.filter((x) => x.id !== c.id && x.parentId !== c.id));
+    try { await api.deleteComment(c.id); onCountChange(comments.length - 1); } catch { reload(); }
+  }
+  async function report(c: FeedComment) {
+    try { await api.reportContent({ commentId: c.id }, 'Commentaire signalé'); alert('Commentaire signalé. Merci.'); } catch { /* ignore */ }
+  }
+  function startReply(c: FeedComment) { setReplyTo(c); inputRef.current?.focus(); }
+
+  // Regroupe : commentaires racines + leurs réponses.
+  const roots = comments.filter((c) => !c.parentId);
+  const repliesOf = (id: string) => comments.filter((c) => c.parentId === id);
+
+  function CommentRow({ c, isReply }: { c: FeedComment; isReply?: boolean }) {
+    return (
+      <div className={`flex gap-2 ${isReply ? 'ml-8' : ''}`}>
+        <button onClick={() => onOpenProfile({ kind: c.author.kind, id: c.author.id })}><Avatar name={c.author.name} photo={c.author.photo} size={isReply ? 24 : 28} /></button>
+        <div className="min-w-0 flex-1">
+          <div className="inline-block rounded-2xl bg-sand-50 px-3 py-1.5 dark:bg-night-700">
+            <button onClick={() => onOpenProfile({ kind: c.author.kind, id: c.author.id })} className="text-xs font-semibold t-title">
+              {c.author.name}
+              {c.author.isAdmin && <span className="ml-1 text-[9px] text-iris-600 dark:text-iris-300">· Dande</span>}
+            </button>
+            <p className="text-sm t-title">{c.body}</p>
+          </div>
+          <div className="mt-0.5 flex items-center gap-3 pl-1 text-[11px] t-faint">
+            <button onClick={() => like(c)} className={c.liked ? 'font-medium text-red-600' : 'hover:underline'}>
+              J’aime{c.likeCount > 0 ? ` · ${c.likeCount}` : ''}
+            </button>
+            {!isReply && <button onClick={() => startReply(c)} className="hover:underline">Répondre</button>}
+            <button onClick={() => report(c)} className="hover:underline">Signaler</button>
+            {c.canDelete && <button onClick={() => del(c)} className="text-red-600 hover:underline">Supprimer</button>}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="border-t border-sand-100 px-4 py-3 dark:border-night-700">
-      <div className="space-y-2.5">
-        {comments.map((c) => (
-          <div key={c.id} className="flex gap-2">
-            <Avatar name={c.author.name} photo={c.author.photo} size={28} />
-            <div className="rounded-2xl bg-sand-50 px-3 py-1.5 dark:bg-night-700">
-              <p className="text-xs font-semibold t-title">
-                {c.author.name}
-                {c.author.isAdmin && <span className="ml-1 text-[9px] text-iris-600 dark:text-iris-300">· Dande</span>}
-              </p>
-              <p className="text-sm t-title">{c.body}</p>
-            </div>
+      <div className="space-y-3">
+        {roots.map((c) => (
+          <div key={c.id} className="space-y-2">
+            <CommentRow c={c} />
+            {repliesOf(c.id).map((rp) => <CommentRow key={rp.id} c={rp} isReply />)}
           </div>
         ))}
       </div>
+
+      {replyTo && (
+        <div className="mt-2 flex items-center justify-between rounded-lg bg-sand-50 px-3 py-1.5 text-xs t-soft dark:bg-night-700">
+          <span>Réponse à <span className="font-medium t-title">{replyTo.author.name}</span></span>
+          <button onClick={() => setReplyTo(null)} className="t-faint">✕</button>
+        </div>
+      )}
       <div className="mt-2.5 flex items-center gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} placeholder="Écrire un commentaire…" className="flex-1 rounded-full border border-sand-200 bg-sand-50 px-3 py-1.5 text-sm outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-900 dark:text-white" />
+        <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} placeholder={replyTo ? 'Votre réponse…' : 'Écrire un commentaire…'} className="flex-1 rounded-full border border-sand-200 bg-sand-50 px-3 py-1.5 text-sm outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-900 dark:text-white" />
         <button onClick={send} disabled={busy || !text.trim()} className="text-sm font-medium text-forest-700 disabled:opacity-40 dark:text-iris-300">Envoyer</button>
       </div>
     </div>

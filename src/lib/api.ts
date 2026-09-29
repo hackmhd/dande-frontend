@@ -224,11 +224,14 @@ export const api = {
   getComments: (id: string) =>
     request<Array<FeedComment>>(`/feed/${id}/comments`),
 
-  addComment: (id: string, body: string) =>
+  addComment: (id: string, body: string, parentId?: string | null) =>
     request<{ id: string; createdAt: string }>(`/feed/${id}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, parentId: parentId ?? null }),
     }),
+
+  likeComment: (commentId: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/feed/comments/${commentId}/like`, { method: 'POST' }),
 
   deletePost: (id: string) => request<{ deleted: boolean }>(`/feed/${id}`, { method: 'DELETE' }),
 
@@ -260,6 +263,10 @@ export interface FeedComment {
   id: string;
   body: string;
   createdAt: string;
+  parentId: string | null;
+  likeCount: number;
+  liked: boolean;
+  canDelete: boolean;
   author: FeedAuthor;
 }
 
@@ -284,4 +291,5 @@ export const dm = {
     request<{ messages: DmMessage[]; profile: PublicProfile }>(`/dm/with/${kind}/${id}`),
   send: (toKind: string, toId: string, payload: { body?: string; photo?: string | null; audio?: string | null }) =>
     request<DmMessage>('/dm', { method: 'POST', body: JSON.stringify({ toKind, toId, ...payload }) }),
+  remove: (messageId: string) => request<{ deleted: boolean }>(`/dm/${messageId}`, { method: 'DELETE' }),
 };
