@@ -190,7 +190,7 @@ export default function FeedPage() {
       {zoom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4" onClick={() => setZoom(null)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={zoom} alt="" className="max-h-[88vh] max-w-full rounded-xl object-contain" />
+          <img src={zoom} alt="" className="max-h-[88dvh] max-w-full rounded-xl object-contain" />
         </div>
       )}
 
@@ -267,12 +267,12 @@ function Comments({ postId, onCountChange, onOpenProfile }: { postId: string; on
       <div className={`flex gap-2 ${isReply ? 'ml-8' : ''}`}>
         <button onClick={() => onOpenProfile({ kind: c.author.kind, id: c.author.id })}><Avatar name={c.author.name} photo={c.author.photo} size={isReply ? 24 : 28} /></button>
         <div className="min-w-0 flex-1">
-          <div className="inline-block rounded-2xl bg-sand-50 px-3 py-1.5 dark:bg-night-700">
+          <div className="inline-block max-w-full rounded-2xl bg-sand-50 px-3 py-1.5 dark:bg-night-700">
             <button onClick={() => onOpenProfile({ kind: c.author.kind, id: c.author.id })} className="text-xs font-semibold t-title">
               {c.author.name}
               {c.author.isAdmin && <span className="ml-1 text-[9px] text-iris-600 dark:text-iris-300">· Dande</span>}
             </button>
-            <p className="text-sm t-title">{c.body}</p>
+            <p className="whitespace-pre-wrap break-words text-sm t-title">{c.body}</p>
           </div>
           <div className="mt-0.5 flex items-center gap-3 pl-1 text-[11px] t-faint">
             <button onClick={() => like(c)} className={c.liked ? 'font-medium text-red-600' : 'hover:underline'}>

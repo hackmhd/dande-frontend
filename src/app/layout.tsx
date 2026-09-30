@@ -12,7 +12,7 @@ export const viewport: Viewport = {
   themeColor: '#1D6E4E',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // On laisse le zoom possible (accessibilité) : ne pas bloquer maximumScale.
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <div className="mx-auto min-h-screen max-w-md bg-sand-50 transition-colors dark:bg-night-950">
+          <div className="mx-auto min-h-[100dvh] max-w-md bg-sand-50 transition-colors dark:bg-night-950">
             {children}
           </div>
         </ThemeProvider>

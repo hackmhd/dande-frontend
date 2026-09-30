@@ -63,7 +63,7 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="flex h-[calc(100vh-5rem)] flex-col">
+    <main className="flex h-[calc(100dvh-5rem)] flex-col">
       {/* En-tête avec contact agent + bouton appeler */}
       <header className="flex items-center gap-3 border-b border-sand-200 bg-white px-4 py-3 dark:border-night-700 dark:bg-night-900">
         <button onClick={() => router.back()} className="t-soft" aria-label="Retour">←</button>
@@ -81,7 +81,7 @@ export default function ChatPage() {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 space-y-2 overflow-y-auto bg-sand-50 px-3 py-4 dark:bg-night-950">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-sand-50 px-3 py-4 dark:bg-night-950">
         {loading ? (
           <p className="mt-8 text-center text-sm t-faint">Chargement…</p>
         ) : messages.length === 0 ? (
@@ -136,7 +136,7 @@ export default function ChatPage() {
       {zoom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6" onClick={() => setZoom(null)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={zoom} alt="Agrandie" className="max-h-[85vh] max-w-full rounded-xl object-contain" />
+          <img src={zoom} alt="Agrandie" className="max-h-[85dvh] max-w-full rounded-xl object-contain" />
         </div>
       )}
     </main>

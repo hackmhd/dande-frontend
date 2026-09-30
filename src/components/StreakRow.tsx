@@ -24,7 +24,7 @@ export function StreakRow({ filledDays, totalDays = 30, onDeposit }: StreakRowPr
         </span>
       </div>
 
-      <div className="grid grid-cols-10 gap-1.5">
+      <div className="grid grid-cols-7 gap-1.5 xs:grid-cols-10">
         {Array.from({ length: totalDays }).map((_, i) => {
           const isFilled = i < done;
           const isNext = i === done;
