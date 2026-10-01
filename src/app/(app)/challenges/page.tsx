@@ -85,15 +85,15 @@ export default function ChallengesPage() {
               <div className="flex flex-col gap-2.5">
                 {available.map((t) => (
                   <div key={t.id} className="surface p-3.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="break-words text-sm font-medium t-title">{t.name}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium t-title">{t.name}</p>
                         <p className="mt-0.5 text-xs t-soft">
                           {t.isFlexible ? 'Montant et durée libres' : `${formatFcfa(t.dailyAmountFcfa ?? 0)} / jour · ${t.durationDays} jours`}
                         </p>
                         <p className="mt-0.5 text-xs t-faint">{t.memberCount} participant{t.memberCount !== 1 ? 's' : ''}</p>
                       </div>
-                      <button onClick={() => join(t)} disabled={joining === t.id} className="btn-primary shrink-0 disabled:opacity-50">
+                      <button onClick={() => join(t)} disabled={joining === t.id} className="btn-primary disabled:opacity-50">
                         {joining === t.id ? '…' : 'Rejoindre'}
                       </button>
                     </div>

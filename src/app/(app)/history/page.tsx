@@ -61,23 +61,23 @@ export default function HistoryPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {txs.map((tx) => (
-            <div key={tx.id} className="surface flex items-center justify-between gap-2 p-3.5">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-forest-50 text-forest-600 dark:bg-forest-600/15 dark:text-forest-400">
+            <div key={tx.id} className="surface flex items-center justify-between p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-forest-50 text-forest-600 dark:bg-forest-600/15 dark:text-forest-400">
                   ↓
                 </div>
-                <div className="min-w-0">
+                <div>
                   <p className="text-sm font-medium t-title">Dépôt</p>
                   <p className="text-xs t-soft">{formatDateTime(tx.at)}</p>
                   {tx.ticket && (
                     <div className="mt-0.5 flex items-center gap-1 text-[11px]">
-                      <span className="shrink-0 t-faint">Ticket :</span>
-                      <CopyChip value={tx.ticket} className="break-all text-[11px] font-semibold text-forest-700 dark:text-forest-400" />
+                      <span className="t-faint">Ticket :</span>
+                      <CopyChip value={tx.ticket} className="text-[11px] font-semibold text-forest-700 dark:text-forest-400" />
                     </div>
                   )}
                 </div>
               </div>
-              <div className="shrink-0 text-right">
+              <div className="text-right">
                 <p className={`text-sm font-medium ${tx.status === 'failed' ? 'text-ink-faint line-through dark:text-iris-100/40' : 't-title'}`}>
                   + {formatFcfa(tx.amountFcfa)}
                 </p>
