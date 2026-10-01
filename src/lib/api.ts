@@ -287,6 +287,7 @@ export interface PublicProfile {
   kind: string; id: string; name: string;
   village: string | null; photo: string | null;
   phone: string | null; isAdmin: boolean;
+  lastSeen?: string | null;
 }
 
 export interface DmMessage {
@@ -301,7 +302,7 @@ export interface DmMessage {
 
 export const dm = {
   list: () =>
-    request<Array<{ otherKind: string; otherId: string; otherName: string; otherPhoto: string | null; lastMessage: string; lastFromMe: boolean; lastAt: string; unread: number }>>('/dm'),
+    request<Array<{ otherKind: string; otherId: string; otherName: string; otherPhoto: string | null; otherLastSeen: string | null; lastMessage: string; lastFromMe: boolean; lastAt: string; unread: number }>>('/dm'),
   unread: () => request<{ unread: number }>('/dm/unread'),
   profile: (kind: string, id: string) => request<PublicProfile>(`/dm/profile/${kind}/${id}`),
   conversation: (kind: string, id: string) =>
@@ -309,4 +310,20 @@ export const dm = {
   send: (toKind: string, toId: string, payload: { body?: string; photo?: string | null; audio?: string | null }) =>
     request<DmMessage>('/dm', { method: 'POST', body: JSON.stringify({ toKind, toId, ...payload }) }),
   remove: (messageId: string) => request<{ deleted: boolean }>(`/dm/${messageId}`, { method: 'DELETE' }),
+  // Ping de présence (« en ligne »).
+  presence: () => request<{ ok: boolean }>('/dm/presence', { method: 'POST' }),
 };
+
+/** « en ligne » si vu il y a moins de 2 min, sinon « vu il y a X » lisible. */
+export function presenceLabel(lastSeen?: string | null): { online: boolean; text: string } | null {
+  if (!lastSeen) return null;
+  const t = new Date(lastSeen).getTime();
+  if (isNaN(t)) return null;
+  const mins = Math.floor((Date.now() - t) / 60000);
+  if (mins < 2) return { online: true, text: 'en ligne' };
+  if (mins < 60) return { online: false, text: `vu il y a ${mins} min` };
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return { online: false, text: `vu il y a ${hours} h` };
+  const days = Math.floor(hours / 24);
+  return { online: false, text: days === 1 ? 'vu hier' : `vu il y a ${days} j` };
+}

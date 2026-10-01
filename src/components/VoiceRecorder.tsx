@@ -123,6 +123,7 @@ export function VoiceRecorder({ onRecorded, disabled, onActiveChange }: { onReco
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [pressed, setPressed] = useState(false);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -263,7 +264,15 @@ export function VoiceRecorder({ onRecorded, disabled, onActiveChange }: { onReco
   // --- Micro (repos) ---
   return (
     <div className="flex flex-col items-center">
-      <button type="button" onClick={start} disabled={disabled} className="flex h-10 w-10 items-center justify-center rounded-full text-forest-700 disabled:opacity-40 dark:text-iris-300" aria-label="Note vocale">
+      <button
+        type="button"
+        onClick={() => { setPressed(true); setTimeout(() => setPressed(false), 450); start(); }}
+        disabled={disabled}
+        className="relative flex h-10 w-10 items-center justify-center rounded-full text-forest-700 transition-transform duration-150 active:scale-90 disabled:opacity-40 dark:text-iris-300"
+        aria-label="Note vocale"
+      >
+        {/* Onde au clic du micro (retour visuel). */}
+        {pressed && <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-forest-500/30 dark:bg-iris-400/30" />}
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4" /></svg>
       </button>
       {error && <span className="text-[10px] text-clay-600">{error}</span>}

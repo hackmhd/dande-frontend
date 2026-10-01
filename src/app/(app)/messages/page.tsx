@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { api, dm } from '@/lib/api';
+import { api, dm, presenceLabel } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
-interface Conv { otherKind: string; otherId: string; otherName: string; otherPhoto: string | null; lastMessage: string; lastFromMe: boolean; lastAt: string; unread: number }
+interface Conv { otherKind: string; otherId: string; otherName: string; otherPhoto: string | null; otherLastSeen: string | null; lastMessage: string; lastFromMe: boolean; lastAt: string; unread: number }
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -17,13 +17,16 @@ function timeAgo(iso: string) {
 }
 function initials(name: string) { return name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase() || '·'; }
 
-function Avatar({ name, photo }: { name: string; photo: string | null }) {
+function Avatar({ name, photo, online }: { name: string; photo: string | null; online?: boolean }) {
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-forest-600 font-semibold text-forest-50">
-      {photo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo} alt={name} className="h-full w-full object-cover" />
-      ) : <span>{initials(name)}</span>}
+    <div className="relative shrink-0">
+      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-forest-600 font-semibold text-forest-50">
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt={name} className="h-full w-full object-cover" />
+        ) : <span>{initials(name)}</span>}
+      </div>
+      {online && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 dark:border-night-900" />}
     </div>
   );
 }
@@ -76,7 +79,7 @@ export default function MessagesInboxPage() {
         <div>
           {convs.map((c) => (
             <button key={`${c.otherKind}:${c.otherId}`} onClick={() => router.push(`/messages/${c.otherKind}/${c.otherId}`)} className="flex w-full items-center gap-3 border-b border-sand-100 px-4 py-3 text-left transition-colors hover:bg-sand-50 dark:border-night-700 dark:hover:bg-night-800/50">
-              <Avatar name={c.otherName} photo={c.otherPhoto} />
+              <Avatar name={c.otherName} photo={c.otherPhoto} online={presenceLabel(c.otherLastSeen)?.online} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="truncate text-sm font-semibold t-title">{c.otherName}</p>

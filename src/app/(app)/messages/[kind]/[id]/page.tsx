@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { dm, DmMessage, PublicProfile } from '@/lib/api';
+import { dm, DmMessage, PublicProfile, presenceLabel } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
 import { VoiceRecorder, MiniPlayer } from '@/components/VoiceRecorder';
 
@@ -44,7 +44,10 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
     load();
     const t = setInterval(load, 15000);
-    return () => clearInterval(t);
+    // Ping de présence (« en ligne ») tant que la conversation est ouverte.
+    dm.presence().catch(() => {});
+    const p = setInterval(() => { dm.presence().catch(() => {}); }, 45000);
+    return () => { clearInterval(t); clearInterval(p); };
   }, [router, kind, id]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
@@ -120,9 +123,18 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
             <img src={profile.photo} alt="" className="h-full w-full object-cover" />
           ) : initials(profile?.name ?? '·')}
         </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold t-title">{profile?.name ?? 'Conversation'}{profile?.isAdmin && <span className="ml-1.5 rounded bg-iris-500/15 px-1.5 py-0.5 text-[10px] font-medium text-iris-600 dark:text-iris-300">Dande</span>}</p>
-          {profile?.village && <p className="text-xs t-faint">{profile.village}</p>}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold t-title">{profile?.name ?? 'Conversation'}{profile?.isAdmin && <span className="ml-1.5 rounded bg-iris-500/15 px-1.5 py-0.5 text-[10px] font-medium text-iris-600 dark:text-iris-300">Dande</span>}</p>
+          {(() => {
+            const pr = presenceLabel(profile?.lastSeen);
+            if (pr) return (
+              <p className="flex items-center gap-1 text-xs t-faint">
+                {pr.online && <span className="h-2 w-2 rounded-full bg-green-500" />}
+                <span className={pr.online ? 'text-green-600 dark:text-green-400' : ''}>{pr.text}</span>
+              </p>
+            );
+            return profile?.village ? <p className="truncate text-xs t-faint">{profile.village}</p> : null;
+          })()}
         </div>
         {profile?.phone && (
           <a href={`tel:${profile.phone}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-forest-600 text-white" aria-label="Appeler">
@@ -156,6 +168,14 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-label="Envoi en cours"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
                 )}
                 {m.status === 'failed' && <span className="font-medium text-red-200">Échec</span>}
+                {/* Coches : une = envoyé, deux bleues = lu. Seulement pour mes messages confirmés. */}
+                {m.fromMe && !m.status && (
+                  m.readAt ? (
+                    <svg width="16" height="12" viewBox="0 0 20 12" fill="none" stroke="#7CC6FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Lu"><path d="M1 6.5 4.5 10 11 2.5" /><path d="M8 10 14.5 2.5" /></svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 14 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Envoyé"><path d="M1 6.5 4.5 10 11 2.5" /></svg>
+                  )
+                )}
               </div>
               {m.status === 'failed' && (
                 <button onClick={() => retry(m)} className="mt-1 flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium text-white">
