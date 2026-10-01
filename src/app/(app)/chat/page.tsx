@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
+import { saveDraft, loadDraft } from '@/lib/draft';
 
 interface Msg {
   id: string; fromAdmin: boolean; body: string; photo: string | null; createdAt: string;
@@ -44,10 +45,12 @@ export default function ChatPage() {
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
     load();
+    setText(loadDraft('chat-agent'));
     const t = setInterval(load, 15000); // rafraîchit la conversation
     return () => clearInterval(t);
   }, [router]);
 
+  useEffect(() => { saveDraft('chat-agent', text); }, [text]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {

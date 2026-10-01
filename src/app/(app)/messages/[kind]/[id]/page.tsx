@@ -6,6 +6,7 @@ import { auth } from '@/lib/auth';
 import { dm, DmMessage, PublicProfile, presenceLabel } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
 import { VoiceRecorder, MiniPlayer } from '@/components/VoiceRecorder';
+import { saveDraft, loadDraft, clearDraft } from '@/lib/draft';
 
 function time(iso: string) {
   const d = new Date(iso);
@@ -43,15 +44,20 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
       .catch(() => {})
       .finally(() => setLoading(false));
   }
+  const draftKey = `dm-${kind}-${id}`;
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
     load();
+    // Restaure le brouillon non envoyé pour cette conversation.
+    setText(loadDraft(draftKey));
     const t = setInterval(load, 15000);
     // Ping de présence (« en ligne ») tant que la conversation est ouverte.
     dm.presence().catch(() => {});
     const p = setInterval(() => { dm.presence().catch(() => {}); }, 45000);
     return () => { clearInterval(t); clearInterval(p); };
   }, [router, kind, id]);
+  // Sauvegarde le brouillon à chaque frappe (et le vide quand le champ l'est).
+  useEffect(() => { saveDraft(draftKey, text); }, [text, draftKey]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -130,6 +136,12 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
     try { await dm.remove(id2); } catch { load(); }
   }
 
+  // Numérote les notes vocales dans l'ordre (pour l'enchaînement automatique).
+  const audioSeq = new Map<string, number>();
+  let an = 0;
+  for (const m of messages) if (m.audio) audioSeq.set(m.id, an++);
+  const voiceGroup = `dm-${kind}-${id}`;
+
   return (
     <main className="flex h-[calc(100dvh-5rem)] flex-col">
       <header className="flex items-center gap-3 border-b border-sand-200 bg-white px-4 py-3 dark:border-night-700 dark:bg-night-900">
@@ -190,7 +202,7 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={m.photo} alt="" onClick={(e) => { e.stopPropagation(); setZoom(m.photo); }} className="mb-1 max-h-56 cursor-zoom-in rounded-lg object-cover" />
                 )}
-                {m.audio && <div className="my-1 w-56 max-w-full"><MiniPlayer src={m.audio} onDark={m.fromMe} /></div>}
+                {m.audio && <div className="my-1 w-56 max-w-full"><MiniPlayer src={m.audio} onDark={m.fromMe} groupId={voiceGroup} seq={audioSeq.get(m.id)} /></div>}
                 {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                 <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${m.fromMe ? 'text-white/70' : 't-faint'}`}>
                   <span>{time(m.createdAt)}</span>

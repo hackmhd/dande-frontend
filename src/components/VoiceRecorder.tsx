@@ -41,12 +41,41 @@ function LiveWave({ analyser, paused, color = 'bg-forest-600' }: { analyser: Ana
 }
 
 /** Petit lecteur audio (bouton lecture/pause + forme d'onde de progression + durée). */
-export function MiniPlayer({ src, accent = 'forest', onDark = false }: { src: string; accent?: 'forest' | 'iris'; onDark?: boolean }) {
+// --- Contrôleur audio global : une seule note vocale joue à la fois. -------
+// Chaque lecteur s'enregistre ; quand l'un démarre, on met les autres en pause.
+// Corrige le bug de deux vocaux qui jouaient en même temps, et sert à
+// l'enchaînement automatique (la note suivante démarre à la fin de la précédente).
+type AudioStopper = () => void;
+const audioRegistry = new Set<AudioStopper>();
+function registerAudio(stop: AudioStopper): () => void {
+  audioRegistry.add(stop);
+  return () => audioRegistry.delete(stop);
+}
+function stopOtherAudios(except: AudioStopper) {
+  for (const stop of audioRegistry) if (stop !== except) stop();
+}
+
+// Enchaînement : quand une note finit, on signale son groupe + position pour que
+// la suivante démarre. Les lecteurs d'un même groupe écoutent cet événement.
+type ChainListener = (groupId: string, nextSeq: number) => void;
+const chainListeners = new Set<ChainListener>();
+function emitChain(groupId: string, nextSeq: number) {
+  for (const l of chainListeners) l(groupId, nextSeq);
+}
+
+// Vitesse de lecture, mémorisée globalement.
+const SPEEDS = [1, 1.5, 2] as const;
+function loadSpeed(): number {
+  try { const v = parseFloat(localStorage.getItem('dande_voice_speed') || '1'); return SPEEDS.includes(v as 1 | 1.5 | 2) ? v : 1; } catch { return 1; }
+}
+
+export function MiniPlayer({ src, accent = 'forest', onDark = false, groupId, seq }: { src: string; accent?: 'forest' | 'iris'; onDark?: boolean; groupId?: string; seq?: number }) {
   const BARS = 28;
   const ref = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
+  const [speed, setSpeed] = useState(1);
   // Forme d'onde figée, déterministe (basée sur la source) pour un rendu stable.
   const bars = useRef<number[]>([]);
   if (bars.current.length === 0) {
@@ -57,29 +86,73 @@ export function MiniPlayer({ src, accent = 'forest', onDark = false }: { src: st
     bars.current = arr;
   }
 
+  useEffect(() => { setSpeed(loadSpeed()); }, []);
+
   useEffect(() => {
     const a = ref.current;
     if (!a) return;
     const onTime = () => setCur(a.currentTime);
     const onDur = () => { if (isFinite(a.duration)) setDur(a.duration); };
-    const onEnd = () => { setPlaying(false); setCur(0); };
+    const onEnd = () => {
+      setPlaying(false); setCur(0);
+      // Enchaînement : demande le démarrage de la note suivante du groupe.
+      if (groupId && typeof seq === 'number') emitChain(groupId, seq + 1);
+    };
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
     a.addEventListener('timeupdate', onTime);
     a.addEventListener('loadedmetadata', onDur);
     a.addEventListener('durationchange', onDur);
     a.addEventListener('ended', onEnd);
+    a.addEventListener('play', onPlay);
+    a.addEventListener('pause', onPause);
+    // S'enregistre dans le contrôleur global (pour être mis en pause par les autres).
+    const unregister = registerAudio(() => { a.pause(); });
     return () => {
       a.removeEventListener('timeupdate', onTime);
       a.removeEventListener('loadedmetadata', onDur);
       a.removeEventListener('durationchange', onDur);
       a.removeEventListener('ended', onEnd);
+      a.removeEventListener('play', onPlay);
+      a.removeEventListener('pause', onPause);
+      unregister();
     };
-  }, []);
+  }, [groupId, seq]);
 
+  // Applique la vitesse à l'élément audio dès qu'elle change.
+  useEffect(() => { if (ref.current) ref.current.playbackRate = speed; }, [speed, playing]);
+
+  // Écoute l'enchaînement : si c'est à mon tour (groupe + position), je démarre.
+  useEffect(() => {
+    if (!groupId || typeof seq !== 'number') return;
+    const listener: ChainListener = (g, nextSeq) => {
+      if (g === groupId && nextSeq === seq) { start(); }
+    };
+    chainListeners.add(listener);
+    return () => { chainListeners.delete(listener); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, seq]);
+
+  function start() {
+    const a = ref.current;
+    if (!a) return;
+    const stopMe = () => a.pause();
+    stopOtherAudios(stopMe); // coupe toute autre note en cours
+    a.playbackRate = speed;
+    a.play().then(() => setPlaying(true)).catch(() => {});
+  }
   function toggle() {
     const a = ref.current;
     if (!a) return;
-    if (a.paused) { a.play(); setPlaying(true); } else { a.pause(); setPlaying(false); }
+    if (a.paused) start(); else a.pause();
   }
+  function cycleSpeed() {
+    const idx = SPEEDS.indexOf(speed as 1 | 1.5 | 2);
+    const next = SPEEDS[(idx + 1) % SPEEDS.length];
+    setSpeed(next);
+    try { localStorage.setItem('dande_voice_speed', String(next)); } catch { /* */ }
+  }
+
   function f(s: number) { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
   const pct = dur > 0 ? cur / dur : 0;
   const played = Math.round(pct * BARS);
@@ -87,6 +160,7 @@ export function MiniPlayer({ src, accent = 'forest', onDark = false }: { src: st
   const onCol = onDark ? 'bg-white' : (accent === 'iris' ? 'bg-iris-500' : 'bg-forest-600');
   const offCol = onDark ? 'bg-white/35' : 'bg-black/15 dark:bg-white/20';
   const timeC = onDark ? 'text-white/80' : 'text-ink-soft dark:text-iris-100/60';
+  const speedC = onDark ? 'bg-white/20 text-white' : 'bg-black/10 text-ink-soft dark:bg-white/15 dark:text-iris-100/70';
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -104,6 +178,12 @@ export function MiniPlayer({ src, accent = 'forest', onDark = false }: { src: st
         ))}
       </div>
       <span className={`shrink-0 text-[11px] tabular-nums ${timeC}`}>{f(cur || dur)}</span>
+      {/* Vitesse de lecture : visible seulement quand on écoute. */}
+      {playing && (
+        <button type="button" onClick={cycleSpeed} className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${speedC}`} aria-label="Vitesse de lecture">
+          {speed}×
+        </button>
+      )}
     </div>
   );
 }
