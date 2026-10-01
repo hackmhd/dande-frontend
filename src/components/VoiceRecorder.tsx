@@ -69,9 +69,16 @@ function loadSpeed(): number {
   try { const v = parseFloat(localStorage.getItem('dande_voice_speed') || '1'); return SPEEDS.includes(v as 1 | 1.5 | 2) ? v : 1; } catch { return 1; }
 }
 
-export function MiniPlayer({ src, accent = 'forest', onDark = false, groupId, seq }: { src: string; accent?: 'forest' | 'iris'; onDark?: boolean; groupId?: string; seq?: number }) {
+export function MiniPlayer({
+  src, accent = 'forest', onDark = false, groupId, seq,
+  avatar, avatarName, listened, onListened,
+}: {
+  src: string; accent?: 'forest' | 'iris'; onDark?: boolean; groupId?: string; seq?: number;
+  avatar?: string | null; avatarName?: string; listened?: boolean; onListened?: () => void;
+}) {
   const BARS = 28;
   const ref = useRef<HTMLAudioElement | null>(null);
+  const waveRef = useRef<HTMLDivElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
@@ -139,12 +146,29 @@ export function MiniPlayer({ src, accent = 'forest', onDark = false, groupId, se
     const stopMe = () => a.pause();
     stopOtherAudios(stopMe); // coupe toute autre note en cours
     a.playbackRate = speed;
-    a.play().then(() => setPlaying(true)).catch(() => {});
+    a.play().then(() => { setPlaying(true); onListened?.(); }).catch(() => {});
   }
   function toggle() {
     const a = ref.current;
     if (!a) return;
     if (a.paused) start(); else a.pause();
+  }
+
+  // Avance/recule en touchant ou glissant sur la forme d'onde.
+  function seekAt(clientX: number) {
+    const a = ref.current; const el = waveRef.current;
+    if (!a || !el || !dur) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    a.currentTime = ratio * dur;
+    setCur(a.currentTime);
+  }
+  function onWavePointerDown(e: React.PointerEvent) {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    seekAt(e.clientX);
+  }
+  function onWavePointerMove(e: React.PointerEvent) {
+    if (e.buttons === 1) seekAt(e.clientX);
   }
   function cycleSpeed() {
     const idx = SPEEDS.indexOf(speed as 1 | 1.5 | 2);
@@ -161,10 +185,30 @@ export function MiniPlayer({ src, accent = 'forest', onDark = false, groupId, se
   const offCol = onDark ? 'bg-white/35' : 'bg-black/15 dark:bg-white/20';
   const timeC = onDark ? 'text-white/80' : 'text-ink-soft dark:text-iris-100/60';
   const speedC = onDark ? 'bg-white/20 text-white' : 'bg-black/10 text-ink-soft dark:bg-white/15 dark:text-iris-100/70';
+  // Micro « écoutée » : bleu dès qu'on a lu la note (ou prop listened), sinon gris.
+  const heard = listened || played > 0 || playing;
+  const dotColor = accent === 'iris' ? '#6C6FEE' : '#1D6E4E';
+  const ini = (avatarName || '·').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase() || '·';
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <audio ref={ref} src={src} preload="metadata" className="hidden" />
+
+      {/* Avatar de l'expéditeur + petit micro (bleu si écoutée). */}
+      {avatar !== undefined && (
+        <div className="relative shrink-0">
+          <div className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-xs font-semibold ${accent === 'iris' ? 'bg-iris-500 text-white' : 'bg-forest-600 text-forest-50'}`}>
+            {avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatar} alt="" className="h-full w-full object-cover" />
+            ) : ini}
+          </div>
+          <span className={`absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full ${onDark ? 'bg-forest-600' : 'bg-white dark:bg-night-800'}`}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={heard ? '#2E86FF' : '#9AA0A6'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4" /></svg>
+          </span>
+        </div>
+      )}
+
       <button type="button" onClick={toggle} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${btn}`} aria-label={playing ? 'Pause' : 'Lire'}>
         {playing ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
@@ -172,11 +216,24 @@ export function MiniPlayer({ src, accent = 'forest', onDark = false, groupId, se
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l11-7z" /></svg>
         )}
       </button>
-      <div className="flex h-7 min-w-0 flex-1 items-center gap-[2px] overflow-hidden">
+
+      {/* Forme d'onde : cliquable/glissable pour se déplacer dans la note. */}
+      <div
+        ref={waveRef}
+        onPointerDown={onWavePointerDown}
+        onPointerMove={onWavePointerMove}
+        className="relative flex h-7 min-w-0 flex-1 cursor-pointer touch-none items-center gap-[2px]"
+      >
         {bars.current.map((h, i) => (
           <div key={i} className={`w-[3px] shrink-0 rounded-full ${i < played ? onCol : offCol}`} style={{ height: `${Math.round(h * 100)}%` }} />
         ))}
+        {/* Point de progression déplaçable */}
+        <span
+          className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full shadow"
+          style={{ left: `calc(${Math.min(100, pct * 100)}% - 6px)`, background: onDark ? '#ffffff' : dotColor }}
+        />
       </div>
+
       <span className={`shrink-0 text-[11px] tabular-nums ${timeC}`}>{f(cur || dur)}</span>
       {/* Vitesse de lecture : visible seulement quand on écoute. */}
       {playing && (

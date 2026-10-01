@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { dm, DmMessage, PublicProfile, presenceLabel } from '@/lib/api';
+import { api, dm, DmMessage, PublicProfile, presenceLabel } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
 import { VoiceRecorder, MiniPlayer } from '@/components/VoiceRecorder';
 import { saveDraft, loadDraft, clearDraft } from '@/lib/draft';
@@ -26,6 +26,7 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
   const [recording, setRecording] = useState(false);
   const [replyTo, setReplyTo] = useState<DmMessage | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null); // message dont le menu réactions est ouvert
+  const [myPhoto, setMyPhoto] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const EMOJIS = ['👍', '❤️', '😂', '😮', '🙏', '🔥'];
@@ -48,6 +49,8 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
     load();
+    // Ma photo de profil (pour afficher mon avatar sur mes notes vocales).
+    api.getProfile().then((p) => setMyPhoto(p.photo ?? null)).catch(() => {});
     // Restaure le brouillon non envoyé pour cette conversation.
     setText(loadDraft(draftKey));
     const t = setInterval(load, 15000);
@@ -202,7 +205,7 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={m.photo} alt="" onClick={(e) => { e.stopPropagation(); setZoom(m.photo); }} className="mb-1 max-h-56 cursor-zoom-in rounded-lg object-cover" />
                 )}
-                {m.audio && <div className="my-1 w-56 max-w-full"><MiniPlayer src={m.audio} onDark={m.fromMe} groupId={voiceGroup} seq={audioSeq.get(m.id)} /></div>}
+                {m.audio && <div className="my-1 w-64 max-w-full"><MiniPlayer src={m.audio} onDark={m.fromMe} groupId={voiceGroup} seq={audioSeq.get(m.id)} avatar={m.fromMe ? myPhoto : (profile?.photo ?? null)} avatarName={m.fromMe ? 'Moi' : (profile?.name ?? '')} /></div>}
                 {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                 <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${m.fromMe ? 'text-white/70' : 't-faint'}`}>
                   <span>{time(m.createdAt)}</span>
