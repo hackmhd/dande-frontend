@@ -293,6 +293,10 @@ export interface DmMessage {
   id: string; fromMe: boolean; body: string;
   photo: string | null; audio: string | null;
   readAt: string | null; createdAt: string;
+  // Champs locaux (jamais renvoyés par le serveur) : état d'envoi côté client,
+  // et la charge utile conservée pour pouvoir réessayer un envoi échoué.
+  status?: 'sending' | 'failed';
+  _payload?: { body?: string; photo?: string | null; audio?: string | null };
 }
 
 export const dm = {

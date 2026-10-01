@@ -6,7 +6,11 @@ import { auth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { compressImage } from '@/components/ProfilePhoto';
 
-interface Msg { id: string; fromAdmin: boolean; body: string; photo: string | null; createdAt: string }
+interface Msg {
+  id: string; fromAdmin: boolean; body: string; photo: string | null; createdAt: string;
+  status?: 'sending' | 'failed';
+  _payload?: { body: string; photo: string | null };
+}
 
 function time(iso: string) {
   const d = new Date(iso);
@@ -19,14 +23,22 @@ export default function ChatPage() {
   const [agent, setAgent] = useState<{ name: string; phone: string } | null>(null);
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   function load() {
-    api.getChat().then((r) => { setMessages(r.messages); setAgent(r.agent); }).catch(() => {}).finally(() => setLoading(false));
+    api.getChat()
+      .then((r) => {
+        setMessages((prev) => {
+          const localPending = prev.filter((m) => m.status === 'sending' || m.status === 'failed');
+          return [...(r.messages as Msg[]), ...localPending];
+        });
+        setAgent(r.agent);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -45,21 +57,35 @@ export default function ChatPage() {
     try { setPhoto(await compressImage(f, 1024, 0.7)); } catch { /* ignore */ }
   }
 
-  async function send() {
-    if ((!text.trim() && !photo) || sending) return;
-    setSending(true);
-    const body = text.trim();
-    setText('');
-    const p = photo;
-    setPhoto(null);
+  async function deliver(payload: { body: string; photo: string | null }, tempId: string) {
     try {
-      const msg = await api.sendChat(body, p);
-      setMessages((m) => [...m, msg as Msg]);
+      const msg = await api.sendChat(payload.body, payload.photo);
+      setMessages((m) => m.map((it) => (it.id === tempId ? (msg as Msg) : it)));
     } catch {
-      // remet le texte en cas d'échec
-      setText(body);
-      setPhoto(p);
-    } finally { setSending(false); }
+      setMessages((m) => m.map((it) => (it.id === tempId ? { ...it, status: 'failed' } : it)));
+    }
+  }
+
+  async function send() {
+    if (!text.trim() && !photo) return;
+    const body = text.trim();
+    const p = photo;
+    setText('');
+    setPhoto(null);
+    // Affichage optimiste immédiat avec statut « en cours d'envoi ».
+    const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimistic: Msg = {
+      id: tempId, fromAdmin: false, body, photo: p,
+      createdAt: new Date().toISOString(), status: 'sending', _payload: { body, photo: p },
+    };
+    setMessages((m) => [...m, optimistic]);
+    await deliver({ body, photo: p }, tempId);
+  }
+
+  async function retry(m: Msg) {
+    if (!m._payload) return;
+    setMessages((x) => x.map((it) => (it.id === m.id ? { ...it, status: 'sending' } : it)));
+    await deliver(m._payload, m.id);
   }
 
   return (
@@ -95,7 +121,19 @@ export default function ChatPage() {
                   <img src={m.photo} alt="Photo" onClick={() => setZoom(m.photo)} className="mb-1 max-h-60 cursor-zoom-in rounded-lg object-cover" />
                 )}
                 {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-                <p className={`mt-0.5 text-[10px] ${m.fromAdmin ? 't-faint' : 'text-white/70'}`}>{time(m.createdAt)}</p>
+                <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${m.fromAdmin ? 't-faint' : 'text-white/70'}`}>
+                  <span>{time(m.createdAt)}</span>
+                  {m.status === 'sending' && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-label="Envoi en cours"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  )}
+                  {m.status === 'failed' && <span className="font-medium text-red-200">Échec</span>}
+                </div>
+                {m.status === 'failed' && (
+                  <button onClick={() => retry(m)} className="mt-1 flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium text-white">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
+                    Réessayer
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -127,7 +165,7 @@ export default function ChatPage() {
             placeholder="Votre message…"
             className="max-h-28 flex-1 resize-none rounded-2xl border border-sand-200 bg-sand-50 px-3 py-2 text-sm outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-800 dark:text-white"
           />
-          <button onClick={send} disabled={sending || (!text.trim() && !photo)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest-600 text-white disabled:opacity-40" aria-label="Envoyer">
+          <button onClick={send} disabled={!text.trim() && !photo} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest-600 text-white disabled:opacity-40" aria-label="Envoyer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" /></svg>
           </button>
         </div>

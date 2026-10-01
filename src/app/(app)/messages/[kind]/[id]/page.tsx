@@ -27,7 +27,18 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
   const endRef = useRef<HTMLDivElement>(null);
 
   function load() {
-    dm.conversation(kind, id).then((r) => { setMessages(r.messages); setProfile(r.profile); }).catch(() => {}).finally(() => setLoading(false));
+    dm.conversation(kind, id)
+      .then((r) => {
+        // On conserve les messages locaux encore en cours d'envoi ou en échec
+        // (ils ne sont pas encore côté serveur) et on les remet à la fin.
+        setMessages((prev) => {
+          const localPending = prev.filter((m) => m.status === 'sending' || m.status === 'failed');
+          return [...r.messages, ...localPending];
+        });
+        setProfile(r.profile);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
@@ -43,19 +54,57 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
     try { setPhoto(await compressImage(f, 1024, 0.7)); } catch { /* ignore */ }
   }
 
+  // Envoi optimiste : le message apparaît tout de suite avec un statut
+  // « en cours d'envoi », puis « envoyé » (remplacé par la version serveur) ou
+  // « échec » (avec bouton Réessayer) si le réseau a coupé.
+  async function sendPayload(payload: { body?: string; photo?: string | null; audio?: string | null }) {
+    const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimistic: DmMessage = {
+      id: tempId, fromMe: true,
+      body: payload.body ?? '', photo: payload.photo ?? null, audio: payload.audio ?? null,
+      readAt: null, createdAt: new Date().toISOString(),
+      status: 'sending', _payload: payload,
+    };
+    setMessages((x) => [...x, optimistic]);
+    try {
+      const m = await dm.send(kind, id, payload);
+      // Remplace le message local par celui renvoyé par le serveur.
+      setMessages((x) => x.map((it) => (it.id === tempId ? m : it)));
+    } catch {
+      setMessages((x) => x.map((it) => (it.id === tempId ? { ...it, status: 'failed' } : it)));
+    }
+  }
+
   async function sendText() {
     if (!text.trim() && !photo) return;
     const body = text.trim(); const p = photo;
     setText(''); setPhoto(null);
-    try { const m = await dm.send(kind, id, { body, photo: p }); setMessages((x) => [...x, m]); }
-    catch { setText(body); setPhoto(p); }
+    await sendPayload({ body, photo: p });
   }
 
   async function sendVoice(dataUri: string) {
-    try { const m = await dm.send(kind, id, { audio: dataUri }); setMessages((x) => [...x, m]); } catch { /* ignore */ }
+    await sendPayload({ audio: dataUri });
+  }
+
+  // Réessayer un message échoué : on le repasse en « en cours » puis on renvoie.
+  async function retry(m: DmMessage) {
+    if (!m._payload) return;
+    setMessages((x) => x.map((it) => (it.id === m.id ? { ...it, status: 'sending' } : it)));
+    try {
+      const sent = await dm.send(kind, id, m._payload);
+      setMessages((x) => x.map((it) => (it.id === m.id ? sent : it)));
+    } catch {
+      setMessages((x) => x.map((it) => (it.id === m.id ? { ...it, status: 'failed' } : it)));
+    }
   }
 
   async function removeMsg(id2: string) {
+    const target = messages.find((m) => m.id === id2);
+    // Un message local (non envoyé / échoué) se retire sans appel serveur.
+    if (target && (target.status === 'sending' || target.status === 'failed')) {
+      setMessages((x) => x.filter((m) => m.id !== id2));
+      return;
+    }
     if (!confirm('Supprimer ce message ?')) return;
     setMessages((x) => x.filter((m) => m.id !== id2));
     try { await dm.remove(id2); } catch { load(); }
@@ -101,7 +150,19 @@ export default function DmPage({ params }: { params: { kind: string; id: string 
               )}
               {m.audio && <div className="my-1 w-56 max-w-full"><MiniPlayer src={m.audio} onDark={m.fromMe} /></div>}
               {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-              <p className={`mt-0.5 text-[10px] ${m.fromMe ? 'text-white/70' : 't-faint'}`}>{time(m.createdAt)}</p>
+              <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${m.fromMe ? 'text-white/70' : 't-faint'}`}>
+                <span>{time(m.createdAt)}</span>
+                {m.status === 'sending' && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-label="Envoi en cours"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                )}
+                {m.status === 'failed' && <span className="font-medium text-red-200">Échec</span>}
+              </div>
+              {m.status === 'failed' && (
+                <button onClick={() => retry(m)} className="mt-1 flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium text-white">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></svg>
+                  Réessayer
+                </button>
+              )}
             </div>
           </div>
         ))}
