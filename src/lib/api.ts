@@ -290,14 +290,19 @@ export interface PublicProfile {
   lastSeen?: string | null;
 }
 
+export interface DmReaction { emoji: string; count: number; mine: boolean }
+export interface DmReplyTo { id: string; text: string }
+
 export interface DmMessage {
   id: string; fromMe: boolean; body: string;
   photo: string | null; audio: string | null;
   readAt: string | null; createdAt: string;
+  replyTo?: DmReplyTo | null;
+  reactions?: DmReaction[];
   // Champs locaux (jamais renvoyés par le serveur) : état d'envoi côté client,
   // et la charge utile conservée pour pouvoir réessayer un envoi échoué.
   status?: 'sending' | 'failed';
-  _payload?: { body?: string; photo?: string | null; audio?: string | null };
+  _payload?: { body?: string; photo?: string | null; audio?: string | null; replyToId?: string | null };
 }
 
 export const dm = {
@@ -307,9 +312,12 @@ export const dm = {
   profile: (kind: string, id: string) => request<PublicProfile>(`/dm/profile/${kind}/${id}`),
   conversation: (kind: string, id: string) =>
     request<{ messages: DmMessage[]; profile: PublicProfile }>(`/dm/with/${kind}/${id}`),
-  send: (toKind: string, toId: string, payload: { body?: string; photo?: string | null; audio?: string | null }) =>
+  send: (toKind: string, toId: string, payload: { body?: string; photo?: string | null; audio?: string | null; replyToId?: string | null }) =>
     request<DmMessage>('/dm', { method: 'POST', body: JSON.stringify({ toKind, toId, ...payload }) }),
   remove: (messageId: string) => request<{ deleted: boolean }>(`/dm/${messageId}`, { method: 'DELETE' }),
+  // Réagir (emoji) à un message. Même emoji = retrait (bascule).
+  react: (messageId: string, emoji: string) =>
+    request<{ reactions: DmReaction[] }>(`/dm/${messageId}/react`, { method: 'POST', body: JSON.stringify({ emoji }) }),
   // Ping de présence (« en ligne »).
   presence: () => request<{ ok: boolean }>('/dm/presence', { method: 'POST' }),
 };

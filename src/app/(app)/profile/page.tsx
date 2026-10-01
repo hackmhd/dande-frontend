@@ -7,6 +7,7 @@ import { api, formatFcfa } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { enablePush, disablePush, pushPermission } from '@/lib/push';
+import { isPinEnabled, setPin as savePin, disablePin, biometricAvailable, enableBiometric, isBiometricEnabled } from '@/lib/applock';
 
 interface Row { label: string; value?: string; action?: () => void; }
 
@@ -28,6 +29,20 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Verrou PIN (local)
+  const [pinOn, setPinOn] = useState(false);
+  const [bioOn, setBioOn] = useState(false);
+  const [bioSupported, setBioSupported] = useState(false);
+  const [pinModal, setPinModal] = useState(false);
+  const [pin1, setPin1] = useState('');
+  const [pin2, setPin2] = useState('');
+  const [pinErr, setPinErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPinOn(isPinEnabled());
+    setBioOn(isBiometricEnabled());
+    biometricAvailable().then(setBioSupported).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
@@ -143,6 +158,31 @@ export default function ProfilePage() {
     setTimeout(() => setToast(null), 3000);
   }
 
+  function openPinModal() { setPin1(''); setPin2(''); setPinErr(null); setPinModal(true); }
+  async function confirmPin() {
+    if (!/^\d{4,8}$/.test(pin1)) { setPinErr('Le code doit comporter 4 à 8 chiffres.'); return; }
+    if (pin1 !== pin2) { setPinErr('Les deux codes ne correspondent pas.'); return; }
+    await savePin(pin1);
+    setPinOn(true); setPinModal(false);
+    setToast('Verrou activé. Le code sera demandé au lancement.');
+    setTimeout(() => setToast(null), 3000);
+  }
+  function turnOffPin() {
+    if (!confirm('Désactiver le verrou de l’application ?')) return;
+    disablePin();
+    setPinOn(false); setBioOn(false);
+    setToast('Verrou désactivé.');
+    setTimeout(() => setToast(null), 3000);
+  }
+  async function toggleBiometric() {
+    if (bioOn) { setToast('Pour retirer la biométrie, désactivez puis réactivez le verrou.'); setTimeout(() => setToast(null), 3500); return; }
+    const uid = profile?.phone || 'dande-user';
+    const ok = await enableBiometric(uid);
+    if (ok) { setBioOn(true); setToast('Biométrie activée.'); }
+    else { setToast('Impossible d’activer la biométrie sur cet appareil.'); }
+    setTimeout(() => setToast(null), 3000);
+  }
+
   const settingRows: Row[] = [
     { label: 'Modifier mes informations', action: openEditProfile },
     { label: profile?.phoneVisible ? 'Masquer mon numéro sur mon profil' : 'Afficher mon numéro sur mon profil', action: togglePhoneVisible },
@@ -212,6 +252,38 @@ export default function ProfilePage() {
               ))}
             </div>
           </section>
+
+          <section className="mb-6">
+            <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide t-faint">Sécurité <span className="normal-case text-[10px] t-faint">(recommandé)</span></p>
+            <div className="surface overflow-hidden">
+              {!pinOn ? (
+                <button onClick={openPinModal} className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-sand-50 dark:hover:bg-night-700/50">
+                  <span className="text-sm t-title">Activer le verrou par code PIN</span>
+                  <span className="t-faint">›</span>
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-sm t-title">Verrou par code PIN</span>
+                    <span className="rounded-md bg-forest-50 px-2 py-0.5 text-xs font-medium text-forest-700 dark:bg-iris-500/15 dark:text-iris-300">Activé</span>
+                  </div>
+                  <button onClick={openPinModal} className="flex w-full items-center justify-between border-t border-sand-100 px-4 py-3 text-left transition-colors hover:bg-sand-50 dark:border-night-700 dark:hover:bg-night-700/50">
+                    <span className="text-sm t-title">Changer le code</span><span className="t-faint">›</span>
+                  </button>
+                  {bioSupported && (
+                    <button onClick={toggleBiometric} className="flex w-full items-center justify-between border-t border-sand-100 px-4 py-3 text-left transition-colors hover:bg-sand-50 dark:border-night-700 dark:hover:bg-night-700/50">
+                      <span className="text-sm t-title">Déverrouillage biométrique</span>
+                      <span className={`text-xs font-medium ${bioOn ? 'text-forest-700 dark:text-iris-300' : 't-faint'}`}>{bioOn ? 'Activé' : 'Activer'}</span>
+                    </button>
+                  )}
+                  <button onClick={turnOffPin} className="flex w-full items-center justify-between border-t border-sand-100 px-4 py-3 text-left transition-colors hover:bg-sand-50 dark:border-night-700 dark:hover:bg-night-700/50">
+                    <span className="text-sm text-red-600 dark:text-red-300">Désactiver le verrou</span><span className="t-faint">›</span>
+                  </button>
+                </>
+              )}
+            </div>
+            <p className="mt-1.5 px-1 text-[11px] t-faint">Le code est demandé à l’ouverture de l’application. Il est vérifié uniquement sur cet appareil.</p>
+          </section>
         </>
       )}
 
@@ -245,6 +317,23 @@ export default function ProfilePage() {
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {pinModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 sm:items-center" onClick={() => setPinModal(false)}>
+          <div className="w-full max-w-md rounded-t-2xl bg-white p-4 dark:bg-night-800 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold t-title">{pinOn ? 'Changer le code' : 'Créer un code PIN'}</h3>
+              <button onClick={() => setPinModal(false)} className="t-faint">✕</button>
+            </div>
+            <label className="mb-1 block text-xs t-soft">Nouveau code (4 à 8 chiffres)</label>
+            <input type="password" inputMode="numeric" value={pin1} onChange={(e) => { setPin1(e.target.value.replace(/\D/g, '').slice(0, 8)); setPinErr(null); }} className="mb-3 w-full rounded-xl border border-sand-200 bg-sand-50 px-3 py-2.5 text-center text-xl tracking-[0.3em] outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-900 dark:text-white" placeholder="••••" />
+            <label className="mb-1 block text-xs t-soft">Confirmer le code</label>
+            <input type="password" inputMode="numeric" value={pin2} onChange={(e) => { setPin2(e.target.value.replace(/\D/g, '').slice(0, 8)); setPinErr(null); }} onKeyDown={(e) => { if (e.key === 'Enter') confirmPin(); }} className="mb-3 w-full rounded-xl border border-sand-200 bg-sand-50 px-3 py-2.5 text-center text-xl tracking-[0.3em] outline-none focus:border-forest-400 dark:border-night-600 dark:bg-night-900 dark:text-white" placeholder="••••" />
+            {pinErr && <p className="mb-2 text-xs text-red-600">{pinErr}</p>}
+            <button onClick={confirmPin} className="w-full rounded-xl bg-forest-600 py-3 font-medium text-white">Enregistrer</button>
           </div>
         </div>
       )}

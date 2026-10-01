@@ -1,4 +1,5 @@
 import { BottomNav } from '@/components/BottomNav';
+import { LockGate } from '@/components/LockGate';
 
 export default function AppLayout({
   children,
@@ -6,9 +7,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
-      {children}
-      <BottomNav />
-    </div>
+    <LockGate>
+      <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        {children}
+        <BottomNav />
+      </div>
+    </LockGate>
   );
 }

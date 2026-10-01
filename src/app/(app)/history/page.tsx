@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { formatFcfa, formatDateTime, api } from '@/lib/api';
 import { CopyChip } from '@/components/CopyChip';
 import { auth } from '@/lib/auth';
+import { cacheGet, cacheSet } from '@/lib/offline';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 const MONTHS = ['jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 function formatDate(iso: string): string {
@@ -30,12 +32,17 @@ export default function HistoryPage() {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [offlineAt, setOfflineAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (!auth.isAuthenticated()) { router.replace('/login'); return; }
     api.getHistory()
-      .then((data) => setTxs(data))
-      .catch((e) => setError(e instanceof Error ? e.message : 'Erreur de chargement.'))
+      .then((data) => { setTxs(data); setOfflineAt(null); cacheSet<Tx[]>('history', data); })
+      .catch((e) => {
+        const cached = cacheGet<Tx[]>('history');
+        if (cached) { setTxs(cached.value); setOfflineAt(cached.at); }
+        else setError(e instanceof Error ? e.message : 'Erreur de chargement.');
+      })
       .finally(() => setLoading(false));
   }, [router]);
 
@@ -49,6 +56,8 @@ export default function HistoryPage() {
         <h1 className="text-lg font-semibold t-title">Historique</h1>
         <p className="mt-0.5 text-sm t-soft">Total épargné : {formatFcfa(total)}</p>
       </header>
+
+      {offlineAt && <OfflineBanner at={offlineAt} />}
 
       {loading ? (
         <div className="surface p-8 text-center text-sm t-soft">Chargement…</div>

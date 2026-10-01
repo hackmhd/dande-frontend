@@ -9,6 +9,10 @@ import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/auth';
+import { cacheGet, cacheSet } from '@/lib/offline';
+import { OfflineBanner } from '@/components/OfflineBanner';
+
+interface DashCache { balance: number; depositCount: number; clientName: string; village: string; photo: string | null }
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -19,12 +23,12 @@ export default function DashboardPage() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [offlineAt, setOfflineAt] = useState<number | null>(null);
 
   const DAILY = 500;
   const LOCK_TOTAL = 30;
 
   useEffect(() => {
-    // Charge le vrai solde et le vrai profil depuis le backend.
     if (!auth.isAuthenticated()) {
       router.replace('/login');
       return;
@@ -36,8 +40,27 @@ export default function DashboardPage() {
         setClientName(p.name);
         setVillage(p.village || 'Dande');
         setPhoto(p.photo ?? null);
+        setOfflineAt(null);
+        // Enregistre pour la consultation hors-ligne.
+        cacheSet<DashCache>('dashboard', {
+          balance: w.balanceFcfa, depositCount: w.depositCount ?? 0,
+          clientName: p.name, village: p.village || 'Dande', photo: p.photo ?? null,
+        });
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Erreur de chargement.'))
+      .catch((e) => {
+        // Réseau coupé : on affiche les dernières données connues si on en a.
+        const cached = cacheGet<DashCache>('dashboard');
+        if (cached) {
+          setBalance(cached.value.balance);
+          setDepositCount(cached.value.depositCount);
+          setClientName(cached.value.clientName);
+          setVillage(cached.value.village);
+          setPhoto(cached.value.photo);
+          setOfflineAt(cached.at);
+        } else {
+          setError(e instanceof Error ? e.message : 'Erreur de chargement.');
+        }
+      })
       .finally(() => setLoading(false));
   }, [router]);
 
@@ -67,6 +90,8 @@ export default function DashboardPage() {
         </div>
         <ThemeToggle />
       </header>
+
+      {offlineAt && <OfflineBanner at={offlineAt} />}
 
       {loading ? (
         <div className="surface p-8 text-center text-sm t-soft">

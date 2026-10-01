@@ -11,6 +11,10 @@ const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // Point de rupture pour les très petits téléphones (< 400 px).
+      screens: {
+        xs: '400px',
+      },
       colors: {
         forest: {
           50: '#E8F2EC',
