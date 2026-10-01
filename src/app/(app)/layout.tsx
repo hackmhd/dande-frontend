@@ -6,7 +6,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="pb-20">
+    <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
       {children}
       <BottomNav />
     </div>

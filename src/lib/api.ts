@@ -244,7 +244,7 @@ export const api = {
     }),
 };
 
-export interface FeedAuthor { kind: string; id: string; name: string; photo: string | null; isAdmin: boolean }
+export interface FeedAuthor { kind: string; id: string; name: string; photo?: string | null; hasPhoto?: boolean; isAdmin: boolean }
 
 export interface FeedPost {
   id: string;
@@ -252,11 +252,24 @@ export interface FeedPost {
   createdAt: string;
   editedAt: string | null;
   author: FeedAuthor;
-  photos: string[];
+  // Le fil ne renvoie plus les photos en entier : seulement leurs identifiants.
+  // Les images se chargent à la demande via feedPhotoUrl() / feedAvatarUrl().
+  photoIds: string[];
   likeCount: number;
   commentCount: number;
   liked: boolean;
   canDelete: boolean;
+}
+
+/** URL authentifiée d'une photo de publication (chargée à la demande, mise en cache). */
+export function feedPhotoUrl(photoId: string): string {
+  const t = typeof window !== 'undefined' ? localStorage.getItem('dande_token') : null;
+  return `${API_BASE}/feed/photo/${photoId}${t ? `?t=${encodeURIComponent(t)}` : ''}`;
+}
+/** URL authentifiée de l'avatar d'un auteur de publication. */
+export function feedAvatarUrl(kind: string, id: string): string {
+  const t = typeof window !== 'undefined' ? localStorage.getItem('dande_token') : null;
+  return `${API_BASE}/feed/avatar/${kind}/${id}${t ? `?t=${encodeURIComponent(t)}` : ''}`;
 }
 
 export interface FeedComment {
